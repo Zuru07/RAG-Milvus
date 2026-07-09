@@ -59,7 +59,10 @@ def generate_embeddings(
     texts = [dataset[i]["abstract"] for i in range(min(num_samples, len(dataset)))]
 
     print(f"Loading embedding model: {EMBEDDING_CONFIG.model_name}...")
-    model = SentenceTransformer(EMBEDDING_CONFIG.model_name, device="cuda")
+    import torch
+    device = "cuda" if torch.cuda.is_available() else ("mps" if torch.backends.mps.is_available() else "cpu")
+    print(f"Using device: {device}")
+    model = SentenceTransformer(EMBEDDING_CONFIG.model_name, device=device)
 
     print(f"Generating embeddings for {len(texts)} documents...")
     embeddings = model.encode(

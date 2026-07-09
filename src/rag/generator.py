@@ -26,7 +26,7 @@ class RAGPipeline:
 
         if embed_model is None:
             import torch
-            device = "cuda" if torch.cuda.is_available() else "cpu"
+            device = "cuda" if torch.cuda.is_available() else ("mps" if torch.backends.mps.is_available() else "cpu")
             print(f"Loading embedding model ({EMBEDDING_CONFIG.model_name}) on {device}...")
             self.embed_model = SentenceTransformer(EMBEDDING_CONFIG.model_name, device=device)
         else:
