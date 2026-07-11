@@ -1,6 +1,7 @@
 """LLM generation pipeline for RAG system."""
 
 import json
+import os
 from typing import List, Optional
 
 import requests
@@ -97,40 +98,86 @@ Answer:"""
             return self._generate(prompt)
 
     def _generate(self, prompt: str) -> str:
-        """Generate response without streaming."""
-        response = requests.post(
-            self.llm_url,
-            json={
-                "model": self.llm_model,
-                "prompt": prompt,
-                "stream": False,
-            },
-        )
-        result = response.json()
-        return result.get("response", "")
+        """Generate response without streaming, falling back to hosted APIs if configured."""
+        openai_key = os.getenv("OPENAI_API_KEY")
+        groq_key = os.getenv("GROQ_API_KEY")
+
+        if openai_key:
+            headers = {
+                "Authorization": f"Bearer {openai_key}",
+                "Content-Type": "application/json"
+            }
+            payload = {
+                "model": os.getenv("LLM_MODEL", "gpt-4o-mini"),
+                "messages": [{"role": "user", "content": prompt}],
+                "temperature": 0.3
+            }
+            try:
+                response = requests.post("https://api.openai.com/v1/chat/completions", headers=headers, json=payload)
+                response.raise_for_status()
+                return response.json()["choices"][0]["message"]["content"]
+            except Exception as e:
+                return f"Error querying OpenAI API: {e}"
+
+        elif groq_key:
+            headers = {
+                "Authorization": f"Bearer {groq_key}",
+                "Content-Type": "application/json"
+            }
+            model = os.getenv("LLM_MODEL", "llama3-8b-8192")
+            if model in ["tinyllama", "llama3.2"]:
+                model = "llama3-8b-8192"
+            payload = {
+                "model": model,
+                "messages": [{"role": "user", "content": prompt}],
+                "temperature": 0.3
+            }
+            try:
+                response = requests.post("https://api.groq.com/openai/v1/chat/completions", headers=headers, json=payload)
+                response.raise_for_status()
+                return response.json()["choices"][0]["message"]["content"]
+            except Exception as e:
+                return f"Error querying Groq API: {e}"
+
+        # Default fallback to local Ollama
+        try:
+            response = requests.post(
+                self.llm_url,
+                json={
+                    "model": self.llm_model,
+                    "prompt": prompt,
+                    "stream": False,
+                },
+            )
+            result = response.json()
+            return result.get("response", "")
+        except Exception as e:
+            return f"Ollama connection refused. Verify Ollama is running locally, or configure OPENAI_API_KEY / GROQ_API_KEY for cloud hosted APIs. Details: {e}"
 
     def _stream_generate(self, prompt: str) -> str:
-        """Generate response with streaming output."""
+        """Generate response with streaming output (local Ollama only)."""
         print(f"\nQuerying {self.llm_model}...")
-        response = requests.post(
-            self.llm_url,
-            json={
-                "model": self.llm_model,
-                "prompt": prompt,
-                "stream": True,
-            },
-            stream=True,
-        )
-
-        full_response = ""
-        for line in response.iter_lines():
-            if line:
-                chunk = json.loads(line)
-                token = chunk.get("response", "")
-                print(token, end="", flush=True)
-                full_response += token
-        print("\n")
-        return full_response
+        try:
+            response = requests.post(
+                self.llm_url,
+                json={
+                    "model": self.llm_model,
+                    "prompt": prompt,
+                    "stream": True,
+                },
+                stream=True,
+            )
+            full_response = ""
+            for line in response.iter_lines():
+                if line:
+                    chunk = json.loads(line)
+                    token = chunk.get("response", "")
+                    print(token, end="", flush=True)
+                    full_response += token
+            print("\n")
+            return full_response
+        except Exception as e:
+            return f"Failed to connect to local Ollama: {e}"
 
     def query(
         self,
