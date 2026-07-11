@@ -23,6 +23,9 @@ class MilvusDB:
             # Ensure the directory exists
             os.makedirs(os.path.dirname(db_path), exist_ok=True)
             self.client = MilvusClient(uri=self.db_path)
+            # Auto-load the collection if it already exists
+            if self.client.has_collection(self.collection_name):
+                self.client.load_collection(self.collection_name)
         except Exception as e:
             raise DatabaseConnectionError(f"Failed to initialize Milvus client: {e}") from e
 
@@ -165,6 +168,14 @@ class MilvusDB:
         search_params: Optional[dict] = None,
     ) -> List[SearchResult]:
         """Vector search with optional metadata filtering."""
+        if not self.client.has_collection(self.collection_name):
+            return []
+            
+        try:
+            self.client.load_collection(self.collection_name)
+        except Exception:
+            pass
+            
         filter_exprs = []
         if filters:
             if "author" in filters:
@@ -221,6 +232,14 @@ class MilvusDB:
 
     def get_document_by_id(self, doc_id: int) -> Optional[SearchResult]:
         """Get a document by its ID."""
+        if not self.client.has_collection(self.collection_name):
+            return None
+            
+        try:
+            self.client.load_collection(self.collection_name)
+        except Exception:
+            pass
+
         try:
             res = self.client.get(
                 collection_name=self.collection_name,

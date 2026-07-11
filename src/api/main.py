@@ -7,9 +7,11 @@ from typing import List, Optional
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
+import os
 
 from src.db.pgvector import PGVectorDB, SearchResult
 from src.db.faiss_index import FAISSIndex
+from src.db.milvus import MilvusDB
 from src.rag.generator import RAGPipeline
 
 
@@ -34,6 +36,7 @@ class RAGRequest(BaseModel):
     limit: int = Field(default=5, ge=1, le=20)
     use_hybrid: bool = True
     use_faiss: bool = False
+    use_milvus: bool = False
     filters: Optional[dict] = None
     stream: bool = False
 
@@ -47,25 +50,29 @@ class RAGResponse(BaseModel):
 
 class StatsResponse(BaseModel):
     total_documents: int
+    total_milvus_documents: int
     categories: List[str]
     has_faiss_index: bool
+    has_milvus_collection: bool
 
 
 class HealthResponse(BaseModel):
     status: str
     database: str
     faiss_loaded: bool
+    milvus_loaded: bool
     model_loaded: bool
 
 
 db: Optional[PGVectorDB] = None
 faiss_index: Optional[FAISSIndex] = None
+milvus_db: Optional[MilvusDB] = None
 rag_pipeline: Optional[RAGPipeline] = None
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    global db, faiss_index, rag_pipeline
+    global db, faiss_index, milvus_db, rag_pipeline
     
     print("Starting up RAG API...")
     print("Connecting to PostgreSQL...")
@@ -82,6 +89,14 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         print(f"Failed to load FAISS index: {e}")
         faiss_index = None
+
+    print("Connecting to Milvus...")
+    try:
+        milvus_db = MilvusDB()
+        print(f"Milvus connected: {milvus_db.count()} documents")
+    except Exception as e:
+        print(f"Failed to connect to Milvus: {e}")
+        milvus_db = None
     
     print("Loading RAG pipeline...")
     rag_pipeline = RAGPipeline(db=db)
@@ -114,6 +129,7 @@ async def health_check():
         status="healthy",
         database="connected" if db is not None else "disconnected",
         faiss_loaded=faiss_index is not None and faiss_index.total_vectors > 0,
+        milvus_loaded=milvus_db is not None and milvus_db.count() > 0,
         model_loaded=rag_pipeline is not None,
     )
 
@@ -127,11 +143,20 @@ async def get_stats():
         categories = db.get_categories()
     except Exception:
         categories = []
+        
+    milvus_count = 0
+    if milvus_db is not None:
+        try:
+            milvus_count = milvus_db.count()
+        except Exception:
+            pass
     
     return StatsResponse(
         total_documents=db.count(),
+        total_milvus_documents=milvus_count,
         categories=categories,
         has_faiss_index=faiss_index is not None and faiss_index.total_vectors > 0,
+        has_milvus_collection=milvus_db is not None and milvus_count > 0,
     )
 
 
@@ -179,6 +204,28 @@ async def search_faiss(request: SearchRequest):
     ]
 
 
+@app.post("/search/milvus", response_model=List[SearchResult])
+async def search_milvus(request: SearchRequest):
+    if milvus_db is None or milvus_db.count() == 0:
+        raise HTTPException(status_code=503, detail="Milvus database not connected or empty")
+    
+    if rag_pipeline is None:
+        raise HTTPException(status_code=503, detail="RAG pipeline not loaded")
+    
+    query_embedding = rag_pipeline.get_query_embedding(request.query)
+    results = milvus_db.search(query_embedding, limit=request.limit, filters=request.filters)
+    
+    return [
+        SearchResult(
+            id=r.id,
+            content=r.content,
+            distance=r.distance,
+            metadata=r.metadata or {},
+        )
+        for r in results
+    ]
+
+
 @app.post("/rag", response_model=RAGResponse)
 async def rag_query(request: RAGRequest):
     if rag_pipeline is None or db is None:
@@ -186,7 +233,11 @@ async def rag_query(request: RAGRequest):
     
     retrieval_engine = "pgvector"
     
-    if request.use_faiss and faiss_index is not None and faiss_index.total_vectors > 0:
+    if request.use_milvus and milvus_db is not None and milvus_db.count() > 0:
+        query_embedding = rag_pipeline.get_query_embedding(request.query)
+        docs = milvus_db.search(query_embedding, limit=request.limit, filters=request.filters)
+        retrieval_engine = "milvus"
+    elif request.use_faiss and faiss_index is not None and faiss_index.total_vectors > 0:
         query_embedding = rag_pipeline.get_query_embedding(request.query)
         _, _, faiss_results = faiss_index.search(query_embedding, k=request.limit)
         
