@@ -59,36 +59,21 @@ DB_NAME=rag_db
 
 ## Usage
 
-### 1. Setup Databases
+### 1. Setup Database
 
-#### A. PostgreSQL + pgvector Setup
-To populate PostgreSQL:
 ```bash
 python -m src.setup_db
 ```
 
-#### B. Milvus Setup
-To populate the Milvus database with the same 100k documents and cached embeddings:
-```bash
-python -m src.setup_milvus 100000
-```
-
 ### 2. Run Benchmarks
 
-#### Option A: pgvector vs FAISS (Standard)
 ```bash
 # Comprehensive index comparison (pgvector vs FAISS)
 python -m src.benchmarks.index_comparison
 ```
 
-#### Option B: pgvector vs pgvector+FAISS vs Milvus (New Three-Way Benchmark)
-To run the benchmark suite comparing all three configurations:
-```bash
-python -m src.benchmarks.compare_all
-```
 This runs:
 - 50 queries across 3 runs
-- 3 engines: pgvector, pgvector+FAISS (hybrid), and Milvus Lite
 - All index types: Flat, IVF, HNSW
 - Metrics: Latency, Recall@K, Precision@K, F1@K, MRR
 
@@ -98,11 +83,12 @@ Graphs are generated automatically in `data/results/`:
 
 | Graph | Description |
 |-------|-------------|
-| `compare_latency.png` | Search latency comparison (log scale) |
-| `compare_recall.png` | Recall@5 comparison |
-| `compare_speedup.png` | Speedup factor comparison vs pgvector Flat |
-| `compare_summary.png` | Complete comparison summary table |
-| `graph_*.png` | Standard pgvector vs FAISS graphs |
+| `graph_latency.png` | Search latency comparison |
+| `graph_recall.png` | Recall@5 comparison |
+| `graph_precision.png` | Precision@5 comparison |
+| `graph_f1.png` | F1@5 comparison |
+| `graph_speedup.png` | FAISS speedup vs pgvector |
+| `graph_summary.png` | Full performance table |
 
 ## Project Structure
 
@@ -111,7 +97,6 @@ src/
 ├── config.py              # Configuration
 ├── exceptions.py          # Custom exceptions
 ├── setup_db.py           # Database setup
-├── setup_milvus.py       # Milvus setup [NEW]
 ├── test_rag.py           # Interactive RAG query
 ├── benchmark.py          # Legacy benchmark
 ├── benchmark_metadata.py # Metadata filtering benchmark
@@ -122,14 +107,12 @@ src/
 │   ├── precision.py      # Precision@K benchmark
 │   ├── comprehensive.py # Full benchmark runner
 │   ├── index_comparison.py # Main comparison
-│   ├── compare_all.py     # Three-way comparison [NEW]
 │   └── graphs.py        # Graph generation
 ├── data/
 │   └── loader.py         # Dataset loading
 ├── db/
 │   ├── pgvector.py     # PostgreSQL/pgvector wrapper
-│   ├── faiss_index.py  # FAISS index wrapper
-│   └── milvus.py       # Milvus wrapper [NEW]
+│   └── faiss_index.py  # FAISS index wrapper
 └── rag/
     └── generator.py    # RAG pipeline
 ```
