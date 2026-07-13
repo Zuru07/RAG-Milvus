@@ -187,6 +187,8 @@ Answer:"""
             }
             try:
                 response = requests.post("https://api.groq.com/openai/v1/chat/completions", headers=headers, json=payload)
+                if response.status_code != 200:
+                    print(f"Groq non-200 response body: {response.text}")
                 response.raise_for_status()
                 return response.json()["choices"][0]["message"]["content"]
             except Exception as e:
