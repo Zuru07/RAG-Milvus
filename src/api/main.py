@@ -87,6 +87,18 @@ async def lifespan(app: FastAPI):
     global db, faiss_index, milvus_db, rag_pipeline
     
     print("Starting up RAG API...")
+    
+    # Run DNS diagnostic immediately on startup
+    import socket
+    dns_status = {}
+    for host in ["google.com", "api-inference.huggingface.co", "aws-1-ap-south-1.pooler.supabase.com"]:
+        try:
+            ip = socket.gethostbyname(host)
+            dns_status[host] = ip
+        except Exception as e:
+            dns_status[host] = f"Error: {e}"
+    print(f"DNS Resolution Diagnostic: {dns_status}")
+
     print("Connecting to PostgreSQL...")
     db = PGVectorDB()
     
@@ -143,16 +155,6 @@ app.add_middleware(
 
 @app.get("/health", response_model=HealthResponse)
 async def health_check():
-    import socket
-    dns_status = {}
-    for host in ["google.com", "api-inference.huggingface.co", "aws-1-ap-south-1.pooler.supabase.com"]:
-        try:
-            ip = socket.gethostbyname(host)
-            dns_status[host] = ip
-        except Exception as e:
-            dns_status[host] = f"Error: {e}"
-    print(f"DNS Resolution Diagnostic: {dns_status}")
-
     return HealthResponse(
         status="healthy",
         database="connected" if db is not None else "disconnected",
