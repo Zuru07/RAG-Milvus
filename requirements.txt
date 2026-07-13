@@ -1,21 +1,7 @@
-# Core ML/Embedding
-datasets>=2.14.0
-sentence-transformers>=2.2.0
-numpy>=1.24.0
-pandas>=2.0.0
-scikit-learn>=1.3.0
-
-# Vector Databases
-psycopg>=3.1.0
-psycopg2-binary>=2.9.9
-pgvector>=0.2.0
-faiss-cpu>=1.7.4
-
-# API & UI
+# Lightweight dependencies for serverless Vercel deployment
 fastapi>=0.104.0
 uvicorn>=0.24.0
-streamlit>=1.28.0
-
-# Utilities
+psycopg2-binary>=2.9.9
+pgvector>=0.2.0
 python-dotenv>=1.0.0
 requests>=2.31.0

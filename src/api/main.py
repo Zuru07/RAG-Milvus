@@ -10,7 +10,13 @@ from pydantic import BaseModel, Field
 import os
 
 from src.db.pgvector import PGVectorDB, SearchResult
-from src.db.faiss_index import FAISSIndex
+
+try:
+    from src.db.faiss_index import FAISSIndex
+    faiss_available = True
+except ImportError:
+    faiss_available = False
+
 from src.db.milvus import MilvusDB
 from src.rag.generator import RAGPipeline
 
@@ -79,16 +85,18 @@ async def lifespan(app: FastAPI):
     db = PGVectorDB()
     
     print("Loading FAISS index...")
-    try:
-        if FAISS_INDEX_PATH.exists():
-            faiss_index = FAISSIndex.load(str(FAISS_INDEX_PATH))
-            print(f"FAISS index loaded: {faiss_index.total_vectors} vectors")
-        else:
-            print("FAISS index not found at", FAISS_INDEX_PATH)
-            faiss_index = None
-    except Exception as e:
-        print(f"Failed to load FAISS index: {e}")
-        faiss_index = None
+    faiss_index = None
+    if faiss_available:
+        try:
+            if FAISS_INDEX_PATH.exists():
+                faiss_index = FAISSIndex.load(str(FAISS_INDEX_PATH))
+                print(f"FAISS index loaded: {faiss_index.total_vectors} vectors")
+            else:
+                print("FAISS index not found at", FAISS_INDEX_PATH)
+        except Exception as e:
+            print(f"Failed to load FAISS index: {e}")
+    else:
+        print("FAISS library not installed. Skipping local FAISS loading.")
 
     print("Connecting to Milvus...")
     try:

@@ -5,7 +5,12 @@ import os
 from typing import List, Optional
 
 import requests
-from sentence_transformers import SentenceTransformer
+
+try:
+    from sentence_transformers import SentenceTransformer
+    has_local_transformer = True
+except ImportError:
+    has_local_transformer = False
 
 from src.config import EMBEDDING_CONFIG, OLLAMA_URL, LLM_MODEL
 from src.db.pgvector import PGVectorDB, SearchResult
@@ -17,25 +22,50 @@ class RAGPipeline:
     def __init__(
         self,
         db: Optional[PGVectorDB] = None,
-        embed_model: Optional[SentenceTransformer] = None,
+        embed_model = None,
         llm_url: str = OLLAMA_URL,
         llm_model: str = LLM_MODEL,
     ):
         self.db = db or PGVectorDB()
         self.llm_url = llm_url
         self.llm_model = llm_model
+        self.embed_model = embed_model
 
         if embed_model is None:
-            import torch
-            device = "cuda" if torch.cuda.is_available() else ("mps" if torch.backends.mps.is_available() else "cpu")
-            print(f"Loading embedding model ({EMBEDDING_CONFIG.model_name}) on {device}...")
-            self.embed_model = SentenceTransformer(EMBEDDING_CONFIG.model_name, device=device)
+            if os.getenv("VERCEL") == "1" or os.getenv("HF_TOKEN") or not has_local_transformer:
+                print("Using HuggingFace Inference API for embeddings (no local SentenceTransformer).")
+                self.embed_model = None
+            else:
+                try:
+                    import torch
+                    device = "cuda" if torch.cuda.is_available() else ("mps" if torch.backends.mps.is_available() else "cpu")
+                    print(f"Loading local embedding model ({EMBEDDING_CONFIG.model_name}) on {device}...")
+                    self.embed_model = SentenceTransformer(EMBEDDING_CONFIG.model_name, device=device)
+                except Exception as e:
+                    print(f"Failed to load local model: {e}. Falling back to API mode.")
+                    self.embed_model = None
         else:
             self.embed_model = embed_model
 
     def get_query_embedding(self, query: str) -> List[float]:
-        """Embed query using the configured model."""
-        return self.embed_model.encode(query, convert_to_numpy=True).tolist()
+        """Embed query using HuggingFace Inference API or local model."""
+        if self.embed_model is None:
+            hf_token = os.getenv("HF_TOKEN")
+            headers = {"Authorization": f"Bearer {hf_token}"} if hf_token else {}
+            url = f"https://api-inference.huggingface.co/pipeline/feature-extraction/{EMBEDDING_CONFIG.model_name}"
+            try:
+                response = requests.post(url, headers=headers, json={"inputs": [query], "options": {"wait_for_model": True}})
+                response.raise_for_status()
+                result = response.json()
+                if isinstance(result, list) and len(result) > 0:
+                    if isinstance(result[0], list):
+                        return result[0]
+                    return result
+                raise ValueError(f"Unexpected response format from HF API: {result}")
+            except Exception as e:
+                raise RuntimeError(f"Failed to generate embedding via HuggingFace Inference API: {e}")
+        else:
+            return self.embed_model.encode(query, convert_to_numpy=True).tolist()
 
     def retrieve(
         self,
