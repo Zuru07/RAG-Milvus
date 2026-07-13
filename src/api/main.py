@@ -1,6 +1,16 @@
 """FastAPI application for RAG system."""
 
 from __future__ import annotations
+import socket
+
+# Force IPv4 DNS resolution to fix Vercel IPv6 lookup bug
+orig_getaddrinfo = socket.getaddrinfo
+def patched_getaddrinfo(host, port, family=0, type=0, proto=0, flags=0):
+    if family == 0 or family == socket.AF_UNSPEC:
+        family = socket.AF_INET
+    return orig_getaddrinfo(host, port, family, type, proto, flags)
+socket.getaddrinfo = patched_getaddrinfo
+
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import List, Optional
