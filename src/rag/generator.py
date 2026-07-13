@@ -52,18 +52,31 @@ class RAGPipeline:
         if self.embed_model is None:
             hf_token = os.getenv("HF_TOKEN")
             headers = {"Authorization": f"Bearer {hf_token}"} if hf_token else {}
-            url = f"https://api-inference.huggingface.co/pipeline/feature-extraction/{EMBEDDING_CONFIG.model_name}"
-            try:
-                response = requests.post(url, headers=headers, json={"inputs": [query], "options": {"wait_for_model": True}})
-                response.raise_for_status()
-                result = response.json()
-                if isinstance(result, list) and len(result) > 0:
-                    if isinstance(result[0], list):
-                        return result[0]
-                    return result
-                raise ValueError(f"Unexpected response format from HF API: {result}")
-            except Exception as e:
-                raise RuntimeError(f"Failed to generate embedding via HuggingFace Inference API: {e}")
+            url = f"https://api-inference.huggingface.co/models/{EMBEDDING_CONFIG.model_name}"
+            
+            last_err = None
+            import time
+            for attempt in range(3):
+                try:
+                    response = requests.post(
+                        url, 
+                        headers=headers, 
+                        json={"inputs": [query], "options": {"wait_for_model": True}},
+                        timeout=8
+                    )
+                    response.raise_for_status()
+                    result = response.json()
+                    if isinstance(result, list) and len(result) > 0:
+                        if isinstance(result[0], list):
+                            return result[0]
+                        return result
+                    raise ValueError(f"Unexpected response format from HF API: {result}")
+                except Exception as e:
+                    last_err = e
+                    print(f"HuggingFace query attempt {attempt + 1} failed: {e}")
+                    time.sleep(1)
+            
+            raise RuntimeError(f"Failed to generate embedding via HuggingFace Inference API after 3 attempts: {last_err}")
         else:
             return self.embed_model.encode(query, convert_to_numpy=True).tolist()
 
