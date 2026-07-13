@@ -54,29 +54,33 @@ class RAGPipeline:
         """Embed query using HuggingFace Inference API or local model."""
         if self.embed_model is None:
             hf_token = os.getenv("HF_TOKEN")
-            print(f"HF_TOKEN loader diagnostic: found={'yes' if hf_token else 'no'}, len={len(hf_token) if hf_token else 0}, prefix={hf_token[:6] if hf_token else 'none'}")
-            headers = {"Authorization": f"Bearer {hf_token}"} if hf_token else {}
-            url = f"https://router.huggingface.co/hf-inference/models/{EMBEDDING_CONFIG.model_name}"
             
             last_err = None
             import time
             for attempt in range(3):
                 try:
-                    response = requests.post(
-                        url, 
-                        headers=headers, 
-                        json={"inputs": [query], "options": {"wait_for_model": True}},
-                        timeout=8
+                    from huggingface_hub import InferenceClient
+                    client = InferenceClient(api_key=hf_token)
+                    result = client.feature_extraction(
+                        query,
+                        model=EMBEDDING_CONFIG.model_name
                     )
-                    if response.status_code != 200:
-                        print(f"HuggingFace non-200 response body: {response.text}")
-                    response.raise_for_status()
-                    result = response.json()
-                    if isinstance(result, list) and len(result) > 0:
-                        if isinstance(result[0], list):
+                    
+                    # Convert result to list
+                    if hasattr(result, "tolist"):
+                        return result.tolist()
+                    elif isinstance(result, list):
+                        if len(result) > 0 and isinstance(result[0], list):
                             return result[0]
                         return result
-                    raise ValueError(f"Unexpected response format from HF API: {result}")
+                    elif isinstance(result, bytes):
+                        import numpy as np
+                        arr = np.frombuffer(result, dtype=np.float32)
+                        return arr.tolist()
+                    else:
+                        import numpy as np
+                        arr = np.array(result)
+                        return arr.tolist()
                 except Exception as e:
                     last_err = e
                     print(f"HuggingFace query attempt {attempt + 1} failed: {e}")
