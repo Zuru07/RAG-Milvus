@@ -54,6 +54,7 @@ class RAGPipeline:
         """Embed query using HuggingFace Inference API or local model."""
         if self.embed_model is None:
             hf_token = os.getenv("HF_TOKEN")
+            print(f"HF_TOKEN loader diagnostic: found={'yes' if hf_token else 'no'}, len={len(hf_token) if hf_token else 0}, prefix={hf_token[:6] if hf_token else 'none'}")
             headers = {"Authorization": f"Bearer {hf_token}"} if hf_token else {}
             url = f"https://router.huggingface.co/hf-inference/models/{EMBEDDING_CONFIG.model_name}"
             
