@@ -52,7 +52,7 @@ class RAGPipeline:
         if self.embed_model is None:
             hf_token = os.getenv("HF_TOKEN")
             headers = {"Authorization": f"Bearer {hf_token}"} if hf_token else {}
-            url = f"https://api-inference.huggingface.co/models/{EMBEDDING_CONFIG.model_name}"
+            url = f"https://huggingface.co/api/models/{EMBEDDING_CONFIG.model_name}/inference"
             
             last_err = None
             import time

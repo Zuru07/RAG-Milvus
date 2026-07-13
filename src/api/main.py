@@ -98,24 +98,6 @@ async def lifespan(app: FastAPI):
     
     print("Starting up RAG API...")
     
-    # Run DNS diagnostic immediately on startup
-    import socket
-    dns_status = {}
-    hosts = [
-        "google.com",
-        "huggingface.co",
-        "api.huggingface.co",
-        "api-inference.huggingface.co",
-        "aws-1-ap-south-1.pooler.supabase.com"
-    ]
-    for host in hosts:
-        try:
-            ip = socket.gethostbyname(host)
-            dns_status[host] = ip
-        except Exception as e:
-            dns_status[host] = f"Error: {e}"
-    print(f"DNS Resolution Diagnostic: {dns_status}")
-
     print("Connecting to PostgreSQL...")
     db = PGVectorDB()
     
@@ -168,26 +150,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-
-@app.get("/dns-debug")
-async def dns_debug():
-    import socket
-    dns_status = {}
-    hosts = [
-        "google.com",
-        "huggingface.co",
-        "api.huggingface.co",
-        "api-inference.huggingface.co",
-        "aws-1-ap-south-1.pooler.supabase.com"
-    ]
-    for host in hosts:
-        try:
-            ip = socket.gethostbyname(host)
-            dns_status[host] = ip
-        except Exception as e:
-            dns_status[host] = f"Error: {e}"
-    return dns_status
 
 
 @app.get("/health", response_model=HealthResponse)
