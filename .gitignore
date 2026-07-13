@@ -28,3 +28,7 @@ __init__.py
 # Agents
 AGENTS.md
 .sisyphus/
+
+# Other
+*/setup_supabase.py
+.gitignore

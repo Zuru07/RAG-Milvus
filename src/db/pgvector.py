@@ -74,6 +74,7 @@ class PGVectorDB:
         drop_sql = "DROP INDEX IF EXISTS idx_documents_embedding;"
         with self.connection() as conn:
             with conn.cursor() as cur:
+                cur.execute("SET statement_timeout = 0;")
                 cur.execute(drop_sql)
 
                 if index_type == "flat":

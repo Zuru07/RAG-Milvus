@@ -206,10 +206,6 @@ export default function App() {
               PostgreSQL: {health?.database === "connected" ? "OK" : "Error"}
             </div>
             <div className="stat-status">
-              <span className={`status-dot ${health?.milvus_loaded ? "active" : "inactive"}`}></span>
-              Milvus VDB: {health?.milvus_loaded ? "Loaded" : "Offline"}
-            </div>
-            <div className="stat-status">
               <span className={`status-dot ${health?.faiss_loaded ? "active" : "inactive"}`}></span>
               FAISS Index: {health?.faiss_loaded ? "Loaded" : "Not Loaded"}
             </div>
@@ -229,20 +225,16 @@ export default function App() {
             {activeTab === "rag" && "RAG QA chatbot"}
           </h1>
           <p>
-            {activeTab === "search" && "Search 100k arXiv paper abstracts semantically across Postgres, FAISS, and Milvus."}
+            {activeTab === "search" && "Search 100k arXiv paper abstracts semantically across Postgres and FAISS."}
             {activeTab === "rag" && "Ask questions about ML concepts using contextual papers retrieved from your vector storage."}
           </p>
         </header>
 
         {/* Global Statistics Display */}
-        <div className="stats-grid">
+        <div className="stats-grid" style={{ gridTemplateColumns: "repeat(2, 1fr)" }}>
           <div className="stat-card">
             <span className="stat-label">PostgreSQL Papers</span>
             <span className="stat-value">{stats?.total_documents?.toLocaleString() || "0"}</span>
-          </div>
-          <div className="stat-card">
-            <span className="stat-label">Milvus Collection</span>
-            <span className="stat-value">{stats?.total_milvus_documents?.toLocaleString() || "0"}</span>
           </div>
           <div className="stat-card">
             <span className="stat-label">FAISS Quantization</span>
@@ -302,21 +294,6 @@ export default function App() {
                     <div>
                       <div className="engine-name">pgvector + FAISS</div>
                       <div className="engine-desc">High-speed in-memory indexing</div>
-                    </div>
-                  </div>
-
-                  <div
-                    className={`engine-option ${searchEngine === "milvus" ? "active" : ""}`}
-                    onClick={() => setSearchEngine("milvus")}
-                  >
-                    <input
-                      type="radio"
-                      checked={searchEngine === "milvus"}
-                      onChange={() => setSearchEngine("milvus")}
-                    />
-                    <div>
-                      <div className="engine-name">Milvus VDB</div>
-                      <div className="engine-desc">Dedicated serverless collection</div>
                     </div>
                   </div>
                 </div>
@@ -424,21 +401,6 @@ export default function App() {
                     <div>
                       <div className="engine-name">Postgres + FAISS</div>
                       <div className="engine-desc">Fastest index retrieval</div>
-                    </div>
-                  </div>
-
-                  <div
-                    className={`engine-option ${ragEngine === "milvus" ? "active" : ""}`}
-                    onClick={() => setRagEngine("milvus")}
-                  >
-                    <input
-                      type="radio"
-                      checked={ragEngine === "milvus"}
-                      onChange={() => setRagEngine("milvus")}
-                    />
-                    <div>
-                      <div className="engine-name">Milvus VDB</div>
-                      <div className="engine-desc">Serverless isolated vector retrieval</div>
                     </div>
                   </div>
                 </div>
