@@ -17,10 +17,12 @@ from src.db.pgvector import PGVectorDB, SearchResult
 
 
 def resolve_host_via_doh(host: str) -> Optional[str]:
-    """Resolve host using Google's DNS-over-HTTPS API to bypass Vercel DNS bugs."""
+    """Resolve host using Google's DNS-over-HTTPS API over IP to bypass Vercel DNS bugs."""
     try:
-        url = f"https://dns.google/resolve?name={host}&type=A"
-        response = requests.get(url, timeout=4)
+        url = f"https://8.8.8.8/resolve?name={host}&type=A"
+        import urllib3
+        urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+        response = requests.get(url, verify=False, timeout=4)
         response.raise_for_status()
         data = response.json()
         if "Answer" in data:
