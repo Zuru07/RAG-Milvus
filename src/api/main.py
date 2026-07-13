@@ -17,7 +17,12 @@ try:
 except ImportError:
     faiss_available = False
 
-from src.db.milvus import MilvusDB
+try:
+    from src.db.milvus import MilvusDB
+    milvus_available = True
+except ImportError:
+    milvus_available = False
+
 from src.rag.generator import RAGPipeline
 
 
@@ -99,12 +104,16 @@ async def lifespan(app: FastAPI):
         print("FAISS library not installed. Skipping local FAISS loading.")
 
     print("Connecting to Milvus...")
-    try:
-        milvus_db = MilvusDB()
-        print(f"Milvus connected: {milvus_db.count()} documents")
-    except Exception as e:
-        print(f"Failed to connect to Milvus: {e}")
-        milvus_db = None
+    milvus_db = None
+    if milvus_available:
+        try:
+            milvus_db = MilvusDB()
+            print(f"Milvus connected: {milvus_db.count()} documents")
+        except Exception as e:
+            print(f"Failed to connect to Milvus: {e}")
+            milvus_db = None
+    else:
+        print("Milvus library not installed. Skipping Milvus connection.")
     
     print("Loading RAG pipeline...")
     rag_pipeline = RAGPipeline(db=db)

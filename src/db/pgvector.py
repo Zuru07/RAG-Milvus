@@ -33,14 +33,17 @@ class PGVectorDB:
     def connection(self, timeout: int = 30) -> Generator[psycopg2.extensions.connection, None, None]:
         """Context manager for database connections."""
         try:
-            conn = psycopg2.connect(
-                dbname=self.config.name,
-                user=self.config.user,
-                password=self.config.password,
-                host=self.config.host,
-                port=self.config.port,
-                connect_timeout=timeout,
-            )
+            conn_params = {
+                "dbname": self.config.name,
+                "user": self.config.user,
+                "password": self.config.password,
+                "host": self.config.host,
+                "port": self.config.port,
+                "connect_timeout": timeout,
+            }
+            if self.config.host != "localhost":
+                conn_params["sslmode"] = "require"
+            conn = psycopg2.connect(**conn_params)
             yield conn
         except psycopg2.OperationalError as e:
             raise DatabaseConnectionError(f"Failed to connect: {e}") from e
