@@ -101,7 +101,14 @@ async def lifespan(app: FastAPI):
     # Run DNS diagnostic immediately on startup
     import socket
     dns_status = {}
-    for host in ["google.com", "api-inference.huggingface.co", "aws-1-ap-south-1.pooler.supabase.com"]:
+    hosts = [
+        "google.com",
+        "huggingface.co",
+        "api.huggingface.co",
+        "api-inference.huggingface.co",
+        "aws-1-ap-south-1.pooler.supabase.com"
+    ]
+    for host in hosts:
         try:
             ip = socket.gethostbyname(host)
             dns_status[host] = ip
