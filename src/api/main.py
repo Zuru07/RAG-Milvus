@@ -1,5 +1,6 @@
 """FastAPI application for RAG system."""
 
+from __future__ import annotations
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import List, Optional
@@ -76,8 +77,8 @@ class HealthResponse(BaseModel):
 
 
 db: Optional[PGVectorDB] = None
-faiss_index: Optional[FAISSIndex] = None
-milvus_db: Optional[MilvusDB] = None
+faiss_index: Optional["FAISSIndex"] = None
+milvus_db: Optional["MilvusDB"] = None
 rag_pipeline: Optional[RAGPipeline] = None
 
 
