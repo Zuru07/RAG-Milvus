@@ -68,6 +68,8 @@ class RAGPipeline:
                         json={"inputs": [query], "options": {"wait_for_model": True}},
                         timeout=8
                     )
+                    if response.status_code != 200:
+                        print(f"HuggingFace non-200 response body: {response.text}")
                     response.raise_for_status()
                     result = response.json()
                     if isinstance(result, list) and len(result) > 0:
