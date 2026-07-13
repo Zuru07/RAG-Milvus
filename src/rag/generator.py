@@ -72,16 +72,16 @@ class RAGPipeline:
             headers = {"Authorization": f"Bearer {hf_token}"} if hf_token else {}
             
             # Dynamic DNS resolution via Google DNS-over-HTTPS to bypass Vercel DNS bug
-            host = "api-inference.huggingface.co"
+            host = "router.huggingface.co"
             ip = resolve_host_via_doh(host)
             
             if ip:
                 print(f"DNS Over HTTPS: Resolved {host} to {ip}")
-                url = f"https://{ip}/models/{EMBEDDING_CONFIG.model_name}"
+                url = f"https://{ip}/hf-inference/models/{EMBEDDING_CONFIG.model_name}"
                 headers["Host"] = host
             else:
                 print("DNS Over HTTPS failed. Falling back to direct DNS subdomain lookup.")
-                url = f"https://{host}/models/{EMBEDDING_CONFIG.model_name}"
+                url = f"https://{host}/hf-inference/models/{EMBEDDING_CONFIG.model_name}"
             
             last_err = None
             import time
