@@ -177,9 +177,9 @@ Answer:"""
                 "Authorization": f"Bearer {groq_key}",
                 "Content-Type": "application/json"
             }
-            model = os.getenv("LLM_MODEL", "llama3-8b-8192")
-            if model in ["tinyllama", "llama3.2"]:
-                model = "llama3-8b-8192"
+            model = os.getenv("LLM_MODEL", "llama-3.1-8b-instant")
+            if model in ["tinyllama", "llama3.2", "llama3-8b-8192"]:
+                model = "llama-3.1-8b-instant"
             payload = {
                 "model": model,
                 "messages": [{"role": "user", "content": prompt}],
