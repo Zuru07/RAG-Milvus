@@ -16,22 +16,7 @@ from src.config import EMBEDDING_CONFIG, OLLAMA_URL, LLM_MODEL
 from src.db.pgvector import PGVectorDB, SearchResult
 
 
-def resolve_host_via_doh(host: str) -> Optional[str]:
-    """Resolve host using Google's DNS-over-HTTPS API over IP to bypass Vercel DNS bugs."""
-    try:
-        url = f"https://8.8.8.8/resolve?name={host}&type=A"
-        import urllib3
-        urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
-        response = requests.get(url, verify=False, timeout=4)
-        response.raise_for_status()
-        data = response.json()
-        if "Answer" in data:
-            for answer in data["Answer"]:
-                if answer.get("type") == 1:  # A record (IPv4)
-                    return answer.get("data")
-    except Exception as e:
-        print(f"DoH resolution failed for {host}: {e}")
-    return None
+
 
 
 class RAGPipeline:
@@ -70,35 +55,17 @@ class RAGPipeline:
         if self.embed_model is None:
             hf_token = os.getenv("HF_TOKEN")
             headers = {"Authorization": f"Bearer {hf_token}"} if hf_token else {}
-            
-            # Dynamic DNS resolution via Google DNS-over-HTTPS to bypass Vercel DNS bug
-            host = "router.huggingface.co"
-            ip = resolve_host_via_doh(host)
-            
-            if ip:
-                print(f"DNS Over HTTPS: Resolved {host} to {ip}")
-                url = f"https://{ip}/hf-inference/models/{EMBEDDING_CONFIG.model_name}"
-                headers["Host"] = host
-            else:
-                print("DNS Over HTTPS failed. Falling back to direct DNS subdomain lookup.")
-                url = f"https://{host}/hf-inference/models/{EMBEDDING_CONFIG.model_name}"
+            url = f"https://router.huggingface.co/hf-inference/models/{EMBEDDING_CONFIG.model_name}"
             
             last_err = None
             import time
             for attempt in range(3):
                 try:
-                    # If we query via raw IP, disable SSL host validation (since cert is for *.huggingface.co)
-                    verify_ssl = False if ip else True
-                    if not verify_ssl:
-                        import urllib3
-                        urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
-
                     response = requests.post(
                         url, 
                         headers=headers, 
                         json={"inputs": [query], "options": {"wait_for_model": True}},
-                        timeout=8,
-                        verify=verify_ssl
+                        timeout=8
                     )
                     response.raise_for_status()
                     result = response.json()
