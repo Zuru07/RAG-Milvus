@@ -152,10 +152,34 @@ Answer:"""
 
     def _generate(self, prompt: str) -> str:
         """Generate response without streaming, falling back to hosted APIs if configured."""
-        openai_key = os.getenv("OPENAI_API_KEY")
+        openrouter_key = os.getenv("OPENROUTER_API_KEY")
         groq_key = os.getenv("GROQ_API_KEY")
 
-        if openai_key:
+        if openrouter_key:
+            headers = {
+                "Authorization": f"Bearer {openrouter_key}",
+                "Content-Type": "application/json",
+                "HTTP-Referer": "https://github.com/Zuru07/RAG-Milvus",
+                "X-Title": "RAG Capstone App"
+            }
+            model = os.getenv("LLM_MODEL", "google/gemma-4-26b-a4b-it:free")
+            if model in ["llama3.2", "tinyllama", "llama-3.1-8b-instant", "llama3-8b-8192"]:
+                model = "google/gemma-4-26b-a4b-it:free"
+            payload = {
+                "model": model,
+                "messages": [{"role": "user", "content": prompt}],
+                "temperature": 0.3
+            }
+            try:
+                response = requests.post("https://openrouter.ai/api/v1/chat/completions", headers=headers, json=payload)
+                if response.status_code != 200:
+                    print(f"OpenRouter non-200 response body: {response.text}")
+                response.raise_for_status()
+                return response.json()["choices"][0]["message"]["content"]
+            except Exception as e:
+                return f"Error querying OpenRouter API: {e}"
+
+        elif openai_key:
             headers = {
                 "Authorization": f"Bearer {openai_key}",
                 "Content-Type": "application/json"
