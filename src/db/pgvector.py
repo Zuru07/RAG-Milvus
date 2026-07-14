@@ -73,12 +73,15 @@ class PGVectorDB:
                 conn.commit()
 
     def create_indexes(self, index_type: str = "ivfflat", nlist: int = 100, ef_construction: int = 100, ef_search: int = 50) -> None:
-        """Create vector index with specified type."""
+        """Create vector index with specified type and text search index."""
         drop_sql = "DROP INDEX IF EXISTS idx_documents_embedding;"
         with self.connection() as conn:
             with conn.cursor() as cur:
                 cur.execute("SET statement_timeout = 0;")
                 cur.execute(drop_sql)
+
+                # Create text search index
+                cur.execute("CREATE INDEX IF NOT EXISTS idx_documents_content_ts ON documents USING gin(to_tsvector('english', content));")
 
                 if index_type == "flat":
                     cur.execute("""
@@ -95,7 +98,7 @@ class PGVectorDB:
                 elif index_type == "hnsw":
                     cur.execute(sql.SQL("""
                         CREATE INDEX idx_documents_embedding 
-                        ON documents USING hnsw (embedding vector_cosine_ops)
+                        ON documents USING hnsw (embedding vector_l2_ops)
                         WITH (m = 16, ef_construction = {});
                     """).format(sql.Literal(ef_construction)))
                 conn.commit()
